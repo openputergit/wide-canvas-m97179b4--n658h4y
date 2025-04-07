@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+</head>
+<style>
+    body {
+        font-family: 'Inter', sans-serif;
+    }
+    .price-chart {
+        width: 100%;
+        height: 300px;
+        background: #f8fafc;
+        border-radius: 8px;
+        overflow: hidden;
+    }
+</style>
+<body class="bg-gray-50">
+    <div class="container mx-auto px-4 py-8">
+        <h1 class="text-3xl font-bold text-gray-800 mb-8">Price Tracker</h1>
+        
+        <!-- Search and Add Product Section -->
+        <div class="bg-white rounded-lg shadow-sm p-6 mb-8">
+            <div class="flex flex-col md:flex-row gap-4">
+                <input type="text" id="productUrl" placeholder="Enter product URL from Amazon/Flipkart" 
+                    class="flex-1 p-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button onclick="trackProduct()" 
+                    class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors">
+                    Track Price
+                </button>
+            </div>
+        </div>
+
+        <!-- Tracked Products -->
+        <div id="trackedProducts" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <!-- Product cards will be dynamically added here -->
+        </div>
+    </div>
+
+<script>
+class PriceTracker {
+    constructor() {
+        this.products = [];
+        this.loadProducts();
+    }
+
+    loadProducts() {
+        const savedProducts = localStorage.getItem('trackedProducts');
+        if (savedProducts) {
+            this.products = JSON.parse(savedProducts);
+            this.renderProducts();
+        }
+    }
+
+    saveProducts() {
+        localStorage.setItem('trackedProducts', JSON.stringify(this.products));
+    }
+
+    addProduct(url) {
+        // In a real implementation, this would make an API call to get product details
+        // For demo purposes, we'll create mock data
+        const mockProduct = {
+            id: Date.now(),
+            url: url,
+            name: "Sample Product " + Math.floor(Math.random() * 1000),
+            currentPrice: Math.floor(Math.random() * 1000) + 100,
+            priceHistory: [
+                ...Array(7).fill(0).map((_, i) => ({
+                    date: new Date(Date.now() - i * 24 * 60 * 60 * 1000).toLocaleDateString(),
+                    price: Math.floor(Math.random() * 1000) + 100
+                }))
+            ],
+            lowestPrice: 0,
+            highestPrice: 0
+        };
+
+        mockProduct.lowestPrice = Math.min(...mockProduct.priceHistory.map(p => p.price));
+        mockProduct.highestPrice = Math.max(...mockProduct.priceHistory.map(p => p.price));
+
+        this.products.unshift(mockProduct);
+        this.saveProducts();
+        this.renderProducts();
+    }
+
+    removeProduct(id) {
+        this.products = this.products.filter(p => p.id !== id);
+        this.saveProducts();
+        this.renderProducts();
+    }
+
+    renderProducts() {
+        const container = document.getElementById('trackedProducts');
+        container.innerHTML = this.products.map(product => `
+            <div class="bg-white rounded-lg shadow-sm p-6">
+                <div class="flex justify-between items-start mb-4">
+                    <h3 class="font-semibold text-lg text-gray-800">${product.name}</h3>
+                    <button onclick="priceTracker.removeProduct(${product.id})" 
+                        class="text-gray-400 hover:text-red-500">
+                        <i class="bi bi-trash"></i>
+                    </button>
+                </div>
+                <div class="mb-4">
+                    <p class="text-2xl font-bold text-green-600">₹${product.currentPrice}</p>
+                    <p class="text-sm text-gray-500">Current Price</p>
+                </div>
+                <div class="flex justify-between mb-4">
+                    <div>
+                        <p class="font-semibold text-red-500">₹${product.highestPrice}</p>
+                        <p class="text-xs text-gray-500">Highest</p>
+                    </div>
+                    <div>
+                        <p class="font-semibold text-green-500">₹${product.lowestPrice}</p>
+                        <p class="text-xs text-gray-500">Lowest</p>
+                    </div>
+                </div>
+                <div class="price-chart">
+                    ${this.renderPriceChart(product.priceHistory)}
+                </div>
+                <a href="${product.url}" target="_blank" 
+                    class="mt-4 block text-center bg-blue-100 text-blue-700 py-2 rounded-lg hover:bg-blue-200 transition-colors">
+                    View Product
+                </a>
+            </div>
+        `).join('');
+    }
+
+    renderPriceChart(priceHistory) {
+        const maxPrice = Math.max(...priceHistory.map(p => p.price));
+        const minPrice = Math.min(...priceHistory.map(p => p.price));
+        const range = maxPrice - minPrice;
+        
+        return `<svg viewBox="0 0 300 100" class="w-full h-full">
+            <polyline
+                points="${priceHistory.reverse().map((p, i) => {
+                    const x = (i * (300 / (priceHistory.length - 1)));
+                    const y = 100 - ((p.price - minPrice) / range * 80 + 10);
+                    return `${x},${y}`;
+                }).join(' ')}"
+                fill="none"
+                stroke="#3b82f6"
+                stroke-width="2"
+            />
+        </svg>`;
+    }
+}
+
+const priceTracker = new PriceTracker();
+
+function trackProduct() {
+    const urlInput = document.getElementById('productUrl');
+    const url = urlInput.value.trim();
+    
+    if (url) {
+        priceTracker.addProduct(url);
+        urlInput.value = '';
+    } else {
+        alert('Please enter a valid product URL');
+    }
+}
+
+// Simulate real-time updates
+setInterval(() => {
+    if (priceTracker.products.length > 0) {
+        priceTracker.products.forEach(product => {
+            product.currentPrice = Math.floor(Math.random() * 1000) + 100;
+            product.priceHistory.unshift({
+                date: new Date().toLocaleDateString(),
+                price: product.currentPrice
+            });
+            if (product.priceHistory.length > 7) {
+                product.priceHistory.pop();
+            }
+            product.lowestPrice = Math.min(...product.priceHistory.map(p => p.price));
+            product.highestPrice = Math.max(...product.priceHistory.map(p => p.price));
+        });
+        priceTracker.renderProducts();
+    }
+}, 5000);
+</script>
+<script>document.body.addEventListener('wheel', e => { if (!e.ctrlKey) return; e.preventDefault(); return }, { passive: false })</script>
+	</body>
+</html>
